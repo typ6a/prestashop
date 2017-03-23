@@ -18,7 +18,7 @@ class Talis extends Module
 
     public function getContent()
         {
-        // return 'asdf';
+        return 'Талис';
         }
 
 }

@@ -340,6 +340,9 @@ class ProductCore extends ObjectModel
             'tax_rules_group' =>            array('type' => self::HAS_ONE),
             'categories' =>                    array('type' => self::HAS_MANY, 'field' => 'id_category', 'object' => 'Category', 'association' => 'category_product'),
             'stock_availables' =>            array('type' => self::HAS_MANY, 'field' => 'id_stock_available', 'object' => 'StockAvailable', 'association' => 'stock_availables'),
+
+            'accessories' => array('type' => self::HAS_MANY, 'field' => 'id_accessory', 'object' => 'Accessory', 'association' => 'accessory_product'),
+       
         ),
     );
 

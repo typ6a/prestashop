@@ -72,6 +72,7 @@ class AdminImportControllerCore extends AdminController
         'available_now' => array('AdminImportController', 'createMultiLangField'),
         'available_later' => array('AdminImportController', 'createMultiLangField'),
         'category' => array('AdminImportController', 'split'),
+        'accessory' => array('AdminImportController', 'split'),
         'online_only' => array('AdminImportController', 'getBoolean'),
     );
 
@@ -83,6 +84,7 @@ class AdminImportControllerCore extends AdminController
         $this->bootstrap = true;
         $this->entities = array(
             $this->l('Categories'),
+            $this->l('Accessories'),
             $this->l('Products'),
             $this->l('Combinations'),
             $this->l('Customers'),
@@ -216,6 +218,7 @@ class AdminImportControllerCore extends AdminController
                 $this->available_fields = array(
                     'no' => array('label' => $this->l('Ignore this column')),
                     'id' => array('label' => $this->l('ID')),
+                    'accessory' => array('label' => $this->l('Accessories (a,b,v...)')),
                     'active' => array('label' => $this->l('Active (0/1)')),
                     'name' => array('label' => $this->l('Name')),
                     'category' => array('label' => $this->l('Categories (x,y,z...)')),
@@ -289,6 +292,7 @@ class AdminImportControllerCore extends AdminController
 
                 self::$default_values = array(
                     'id_category' => array((int)Configuration::get('PS_HOME_CATEGORY')),
+                    'id_accessory' => null,
                     'id_category_default' => null,
                     'active' => '1',
                     'width' => 0.000000,
@@ -1385,11 +1389,20 @@ class AdminImportControllerCore extends AdminController
                 $product->loadStockData();
                 $update_advanced_stock_management_value = true;
                 $category_data = Product::getProductCategories((int)$product->id);
+                $accessory_data = Product::getProductAccessories((int)$product->id);
+
 
                 if (is_array($category_data)) {
                     foreach ($category_data as $tmp) {
                         if (!isset($product->category) || !$product->category || is_array($product->category)) {
                             $product->category[] = $tmp;
+                        }
+                    }
+                }
+                if (is_array($accessory_data)) {
+                    foreach ($accessory_data as $accessoryTmp) {
+                        if (!isset($product->accessory) || !$product->accessory || is_array($product->accessory)) {
+                            $product->category[] = $accessoryTmp;
                         }
                     }
                 }
@@ -1501,6 +1514,52 @@ class AdminImportControllerCore extends AdminController
             if (!Configuration::get('PS_USE_ECOTAX')) {
                 $product->ecotax = 0;
             }
+
+            
+
+
+
+            if (isset($product->accessory) && is_array($product->accessory) && count($product->accessory)) {
+                $product->id_accessory = array(); // Reset default values array
+                foreach ($product->accessory as $value) {
+                    if (is_numeric($value)) {
+                        if (Accessory::accessoryExists((int)$value)) {
+                            $product->id_accessory[] = (int)$value;
+                        } else {
+                            $accessory_to_create = new Accessory();
+                            $accessory_to_create->id = (int)$value;
+                            $accessory_to_create->name = AdminImportController::createMultiLangField($value);
+                            $accessory_to_create->active = 1;
+                            // $accessory_to_create->id_parent = Configuration::get('PS_HOME_CATEGORY'); // Default parent is home for unknown category to create
+                            $accessory_link_rewrite = Tools::link_rewrite($accessory_to_create->name[$default_language_id]);
+                            $accessory_to_create->link_rewrite = AdminImportController::createMultiLangField($accessory_link_rewrite);
+                            if (($field_error = $accessory_to_create->validateFields(UNFRIENDLY_ERROR, true)) === true &&
+                                ($lang_field_error = $accessory_to_create->validateFieldsLang(UNFRIENDLY_ERROR, true)) === true && $accessory_to_create->add()) {
+                                $product->id_accessory[] = (int)$accessory_to_create->id;
+                            } else {
+                                $this->errors[] = sprintf(
+                                    Tools::displayError('%1$s (ID: %2$s) cannot be saved'),
+                                    $accessory_to_create->name[$default_language_id],
+                                    (isset($accessory_to_create->id) && !empty($accessory_to_create->id))? $accessory_to_create->id : 'null'
+                                );
+                                $this->errors[] = ($field_error !== true ? $field_error : '').(isset($lang_field_error) && $lang_field_error !== true ? $lang_field_error : '').
+                                    Db::getInstance()->getMsgError();
+                            }
+                        }
+                    } elseif (is_string($value) && !empty($value)) {
+                        $accessory = Accessory::searchByPath($default_language_id, trim($value), $this, 'productImportCreateAccessory');
+                        if ($accessory['id_accessory']) {
+                            $product->id_accessory[] = (int)$accessory['id_accessory'];
+                        } else {
+                            $this->errors[] = sprintf(Tools::displayError('%1$s cannot be saved'), trim($value));
+                        }
+                    }
+                }
+                $product->id_accessory = array_values(array_unique($product->id_accessory));
+            }
+
+
+
 
             if (isset($product->category) && is_array($product->category) && count($product->category)) {
                 $product->id_category = array(); // Reset default values array
@@ -1841,6 +1900,10 @@ class AdminImportControllerCore extends AdminController
                     $product->updateCategories(array_map('intval', $product->id_category));
                 }
 
+                if (isset($product->id_accessory) && is_array($product->id_accessory)) {
+                    $product->updateAccessories(array_map('intval', $product->id_accessory));
+                }
+
                 $product->checkDefaultAttributes();
                 if (!$product->cache_default_attribute) {
                     Product::updateDefaultAttribute($product->id);
@@ -2001,6 +2064,40 @@ class AdminImportControllerCore extends AdminController
                 Db::getInstance()->getMsgError();
         }
     }
+
+    public function productImportCreateAccessory($default_language_id, $accessory_name)
+    {
+        $accessory_to_create = new Accessory();
+        $shop_is_feature_active = Shop::isFeatureActive();
+        if (!$shop_is_feature_active) {
+            $accessory_to_create->id_shop_default = 1;
+        } else {
+            $accessory_to_create->id_shop_default = (int)Context::getContext()->shop->id;
+        }
+        $accessory_to_create->name = AdminImportController::createMultiLangField(trim($accessory_name));
+        $accessory_to_create->active = 1;
+        // $accessory_to_create->id_parent = (int)$id_parent_category ? (int)$id_parent_category : (int)Configuration::get('PS_HOME_CATEGORY'); // Default parent is home for unknown category to create
+        $accessory_link_rewrite = Tools::link_rewrite($accessory_to_create->name[$default_language_id]);
+        $accessory_to_create->link_rewrite = AdminImportController::createMultiLangField($accessory_link_rewrite);
+
+        if (($field_error = $accessory_to_create->validateFields(UNFRIENDLY_ERROR, true)) === true &&
+            ($lang_field_error = $accessory_to_create->validateFieldsLang(UNFRIENDLY_ERROR, true)) === true && $accessory_to_create->add()) {
+            /**
+             * @see AdminImportController::productImport() @ Line 1480
+             * @TODO Refactor if statement
+             */
+            // $product->id_category[] = (int)$category_to_create->id;
+        } else {
+            $this->errors[] = sprintf(
+                Tools::displayError('%1$s (ID: %2$s) cannot be saved'),
+                $accessory_to_create->name[$default_language_id],
+                (isset($accessory_to_create->id) && !empty($accessory_to_create->id))? $accessory_to_create->id : 'null'
+            );
+            $this->errors[] = ($field_error !== true ? $field_error : '').(isset($lang_field_error) && $lang_field_error !== true ? $lang_field_error : '').
+                Db::getInstance()->getMsgError();
+        }
+    }
+
 
     public function attributeImport()
     {
@@ -3374,6 +3471,10 @@ class AdminImportControllerCore extends AdminController
                 break;
             case $this->entities[$this->l('Products')]:
                 Db::getInstance()->execute('TRUNCATE TABLE `'._DB_PREFIX_.'product`');
+
+                Db::getInstance()->execute('TRUNCATE TABLE `'._DB_PREFIX_.'acessory_product`');
+
+
                 Db::getInstance()->execute('TRUNCATE TABLE `'._DB_PREFIX_.'product_shop`');
                 Db::getInstance()->execute('TRUNCATE TABLE `'._DB_PREFIX_.'feature_product`');
                 Db::getInstance()->execute('TRUNCATE TABLE `'._DB_PREFIX_.'product_lang`');
@@ -3493,6 +3594,12 @@ class AdminImportControllerCore extends AdminController
                         $this->categoryImport();
                         $this->clearSmartyCache();
                         break;
+
+                    // case $this->entities[$import_type = $this->l('Accessories')]:
+                    //     $this->accessoryImport();
+                    //     $this->clearSmartyCache();
+                    //     break;
+
                     case $this->entities[$import_type = $this->l('Products')]:
                         $this->productImport();
                         $this->clearSmartyCache();
