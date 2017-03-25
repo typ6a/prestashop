@@ -1,4 +1,4 @@
-<?php /* Smarty version Smarty-3.1.19, created on 2017-03-22 16:07:30
+<?php /* Smarty version Smarty-3.1.19, created on 2017-03-25 09:12:14
          compiled from "/home/vagrant/Code/prestashop/modules/dashgoals/views/templates/hook/dashboard_zone_two.tpl" */ ?>
 <?php /*%%SmartyHeaderCode:192288263358d2d982ce6ae2-98161082%%*/if(!defined('SMARTY_DIR')) exit('no direct access allowed');
 $_valid = $_smarty_tpl->decodeProperties(array (
@@ -7,7 +7,7 @@ $_valid = $_smarty_tpl->decodeProperties(array (
     '3a510b5f810ebb07a7443d8e62a7c1797953971b' => 
     array (
       0 => '/home/vagrant/Code/prestashop/modules/dashgoals/views/templates/hook/dashboard_zone_two.tpl',
-      1 => 1482153428,
+      1 => 1490225849,
       2 => 'file',
     ),
   ),
@@ -15,6 +15,8 @@ $_valid = $_smarty_tpl->decodeProperties(array (
   'function' => 
   array (
   ),
+  'version' => 'Smarty-3.1.19',
+  'unifunc' => 'content_58d2d983290f26_78659656',
   'variables' => 
   array (
     'currency' => 0,
@@ -23,8 +25,6 @@ $_valid = $_smarty_tpl->decodeProperties(array (
     'colors' => 0,
   ),
   'has_nocache_code' => false,
-  'version' => 'Smarty-3.1.19',
-  'unifunc' => 'content_58d2d983290f26_78659656',
 ),false); /*/%%SmartyHeaderCode%%*/?>
 <?php if ($_valid && !is_callable('content_58d2d983290f26_78659656')) {function content_58d2d983290f26_78659656($_smarty_tpl) {?>
 <div class="clearfix"></div>
